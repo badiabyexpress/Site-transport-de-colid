@@ -7,27 +7,27 @@ clients, comptabilité, commissions par agence et assistant IA.
 
 - **React 18** + **Vite** (build rapide, supporté nativement par Vercel)
 - **lucide-react** pour les icônes
-- Stockage : **localStorage** par défaut (voir limite ci-dessous)
+- Stockage : **Supabase** (base PostgreSQL partagée, synchronisation en temps réel entre tous les appareils)
 - IA : **Claude (Anthropic)** via une fonction serverless (`api/claude.js`) qui garde la clé API côté serveur
 
-## ⚠️ Limite importante du stockage actuel
+## Synchronisation en temps réel
 
-Par défaut, les données (colis, utilisateurs, tarifs...) sont stockées dans le
-**localStorage du navigateur**. Cela veut dire :
+Toutes les données (colis, utilisateurs, tarifs...) sont stockées dans un projet Supabase
+partagé ("Site transport colis"). Deux agents connectés sur deux appareils différents
+voient les mêmes données, et toute modification apparaît automatiquement chez les autres
+sans recharger la page (abonnement Supabase Realtime, voir `src/lib/storage.js`).
 
-- Aucune donnée n'est perdue si vous rechargez la page ou fermez l'onglet.
-- **Mais** deux appareils ou navigateurs différents ne partagent PAS les mêmes données.
-  Un agent sur son téléphone ne verra pas les colis créés par un collègue sur son ordinateur.
-
-C'est un excellent point de départ pour tester en production, mais **pas suffisant**
-pour une utilisation à plusieurs agents en simultané. Voir `DEPLOIEMENT.md`,
-section "Aller plus loin : vraie base de données", pour la marche à suivre.
+**Note de sécurité** : l'application utilise son propre écran de connexion (pas de compte
+Supabase par utilisateur), donc la clé publique Supabase autorise l'accès à la table de
+données — la protection réelle vient de l'écran de connexion applicatif. Convient à un usage
+interne d'entreprise ; pour des données très sensibles, il faudrait migrer vers de vrais
+comptes Supabase Auth par utilisateur.
 
 ## Démarrer en local
 
 ```bash
 npm install
-cp .env.example .env   # puis renseignez votre clé ANTHROPIC_API_KEY
+cp .env.example .env   # les identifiants Supabase y sont déjà pré-remplis, ajoutez juste votre clé ANTHROPIC_API_KEY
 npm run dev
 ```
 

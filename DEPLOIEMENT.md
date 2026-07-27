@@ -57,10 +57,10 @@ connexion via le navigateur).
 5. Vercel détecte automatiquement **Vite** comme framework — laissez les réglages par défaut :
    - Build Command : `npm run build`
    - Output Directory : `dist`
-6. **Avant de cliquer sur Deploy**, ouvrez la section **Environment Variables** et ajoutez :
-   - Nom : `ANTHROPIC_API_KEY`
-   - Valeur : votre clé API (récupérée sur https://console.anthropic.com/settings/keys)
-   - Cochez les 3 environnements (Production, Preview, Development)
+6. **Avant de cliquer sur Deploy**, ouvrez la section **Environment Variables** et ajoutez ces trois variables (cochez les 3 environnements Production/Preview/Development pour chacune) :
+   - `ANTHROPIC_API_KEY` : votre clé API (récupérée sur https://console.anthropic.com/settings/keys)
+   - `VITE_SUPABASE_URL` : `https://vtzpejzghtcakqucuvmc.supabase.co`
+   - `VITE_SUPABASE_ANON_KEY` : la valeur présente dans `.env.example`
 7. Cliquez sur **Deploy**
 
 Après 1 à 2 minutes, Vercel vous donne une URL du type `ba-diaby-express.vercel.app` —
@@ -96,23 +96,14 @@ configuration supplémentaire. Aucun changement d'architecture n'est nécessaire
 
 ---
 
-## Aller plus loin : vraie base de données (recommandé avant un usage à plusieurs agences)
+## Base de données — déjà en place ✅
 
-Le stockage actuel (`src/lib/storage.js`) utilise le localStorage du navigateur : chaque
-appareil a ses propres données, sans synchronisation. Pour un vrai partage en temps réel
-entre agents, agences et appareils (comme demandé dans le cahier des charges initial),
-il faut migrer vers une base de données hébergée. Recommandation : **Supabase**
-(gratuit pour démarrer, base PostgreSQL, se branche facilement à Vercel).
+Le projet Supabase "Site transport colis" est créé et connecté (table `bde_data`,
+synchronisation en temps réel activée). Toutes les données sont partagées entre tous
+les appareils qui ouvrent le site — plus besoin de migration supplémentaire pour ça.
 
-Grandes lignes de la migration (à faire dans une prochaine session si vous le souhaitez) :
-
-1. Créer un projet sur https://supabase.com
-2. Créer une table `bde_data` avec une colonne `value` (type `jsonb`)
-3. Remplacer le contenu de `src/lib/storage.js` par des appels à `@supabase/supabase-js`
-   au lieu de `localStorage` — la même interface (`get`/`set`/`delete`/`list`) peut être
-   gardée, donc le reste de l'application n'a pas besoin de changer
-4. Ajouter `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY` dans les variables d'environnement Vercel
-5. Activer Supabase Realtime pour que les changements apparaissent instantanément chez
-   tous les utilisateurs connectés, sans recharger la page
-
-Dites-le-moi quand vous voulez vous y attaquer, je peux préparer ce code précisément.
+Point de sécurité à connaître : l'application utilise son propre écran de connexion
+(pas de compte Supabase par utilisateur), donc la clé publique Supabase donne accès à la
+table de données — voir la note détaillée dans `src/lib/storage.js`. Convient à un usage
+interne d'entreprise ; pour des données très sensibles, il faudrait passer à de vrais
+comptes Supabase Auth par utilisateur (dites-le-moi si vous voulez qu'on fasse cette évolution).

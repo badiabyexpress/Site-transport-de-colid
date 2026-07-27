@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Package, Truck, Users, DollarSign, LayoutDashboard, Settings, Search, Plus, LogOut, MapPin, Plane, Ship, CheckCircle2, Clock, AlertTriangle, X, User, Lock, Shield, ChevronRight, ChevronLeft, Printer, Trash2, MessageCircle, Camera, Navigation, Globe, Sparkles, Download, RefreshCw, PenTool, ShieldCheck, Receipt, FileStack, Sun, Moon } from "lucide-react";
+import { Package, Truck, Users, DollarSign, LayoutDashboard, Settings, Search, Plus, LogOut, MapPin, Plane, Ship, CheckCircle2, Clock, AlertTriangle, X, User, Lock, Shield, ChevronRight, ChevronLeft, Printer, Trash2, MessageCircle, Camera, Navigation, Globe, Sparkles, Download, RefreshCw, PenTool, ShieldCheck, Receipt, FileStack, Sun, Moon, Menu } from "lucide-react";
 import { storage, subscribeToChanges } from "./lib/storage.js";
+
 
 /* ---------- design tokens ----------
 Navy #0A2647 · Red #C8102E · White #FFFFFF · Ice var(--surface2) · Slate var(--muted)
@@ -312,6 +313,17 @@ function Barcode({ value }) {
   );
 }
 
+/** Détecte si l'écran est de taille mobile, et se met à jour si la fenêtre est redimensionnée ou pivotée. */
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 900 : false));
+  useEffect(() => {
+    function onResize() { setIsMobile(window.innerWidth < 900); }
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return isMobile;
+}
+
 function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -323,6 +335,8 @@ function App() {
   const [theme, setTheme] = useState("dark");
   const [collapsed, setCollapsed] = useState(false);
   const [adminResetKey, setAdminResetKey] = useState(0);
+  const isMobile = useIsMobile();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
     let settled = false;
@@ -333,19 +347,6 @@ function App() {
       if (!settled) { console.error("Délai de chargement dépassé, démarrage en mode local."); setOffline(true); setData(defaultSeed()); setLoading(false); }
     }, 7000);
     return () => clearTimeout(timeout);
-  }, []);
-
-  // Synchronisation en temps réel : si un autre appareil/utilisateur modifie les données,
-  // on les recharge automatiquement ici, sans que la personne ait besoin de rafraîchir la page.
-  useEffect(() => {
-    const unsubscribe = subscribeToChanges("bde-data", (newValueString) => {
-      try {
-        const next = JSON.parse(newValueString);
-        setData(next);
-        if (next.exchangeRates) LIVE_RATES = { ...CURRENCIES, ...next.exchangeRates };
-      } catch (e) { console.error("Échec de synchronisation temps réel", e); }
-    });
-    return unsubscribe;
   }, []);
 
   function persist(next) { setData(next); if (next.exchangeRates) LIVE_RATES = { ...CURRENCIES, ...next.exchangeRates }; if (!offline) saveData(next); }
@@ -386,15 +387,31 @@ function App() {
   return (
     <Shell rtl={rtl} theme={theme}>
       <div style={{ display: "flex", minHeight: "100vh", background: "var(--surface2)" }}>
-        <aside style={{ width: collapsed ? 72 : 240, transition: "width 0.18s ease", background: "#0A2647", color: "#fff", display: "flex", flexDirection: "column", flexShrink: 0, position: "relative" }}>
-          <button onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Déplier le menu" : "Replier le menu"} style={{
-            position: "absolute", top: 22, insetInlineEnd: -12, width: 24, height: 24, borderRadius: "50%",
-            background: "#E23F52", border: "2px solid var(--surface2)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 5,
-          }}>
-            {(collapsed && !rtl) || (!collapsed && rtl) ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
-          </button>
-          <div style={{ padding: collapsed ? "22px 10px" : "22px 20px", borderBottom: "1px solid rgba(255,255,255,0.12)", overflow: "hidden" }}>
-            {collapsed ? (
+        {isMobile && mobileNavOpen && (
+          <div onClick={() => setMobileNavOpen(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 40 }} />
+        )}
+        <aside style={{
+          width: isMobile ? 240 : (collapsed ? 72 : 240),
+          transition: isMobile ? "transform 0.2s ease" : "width 0.18s ease",
+          background: "#0A2647", color: "#fff", display: "flex", flexDirection: "column", flexShrink: 0,
+          position: isMobile ? "fixed" : "relative", insetInlineStart: 0, top: 0, bottom: 0, zIndex: 41,
+          transform: isMobile ? (mobileNavOpen ? "translateX(0)" : (rtl ? "translateX(100%)" : "translateX(-100%)")) : "none",
+        }}>
+          {!isMobile && (
+            <button onClick={() => setCollapsed((c) => !c)} title={collapsed ? "Déplier le menu" : "Replier le menu"} style={{
+              position: "absolute", top: 22, insetInlineEnd: -12, width: 24, height: 24, borderRadius: "50%",
+              background: "#E23F52", border: "2px solid var(--surface2)", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 5,
+            }}>
+              {(collapsed && !rtl) || (!collapsed && rtl) ? <ChevronRight size={13} /> : <ChevronLeft size={13} />}
+            </button>
+          )}
+          {isMobile && (
+            <button onClick={() => setMobileNavOpen(false)} style={{ position: "absolute", top: 18, insetInlineEnd: 14, width: 30, height: 30, borderRadius: 8, background: "rgba(255,255,255,0.1)", border: "none", color: "#fff", cursor: "pointer", display: "grid", placeItems: "center", zIndex: 5 }}>
+              <X size={16} />
+            </button>
+          )}
+          <div style={{ padding: (collapsed && !isMobile) ? "22px 10px" : "22px 20px", borderBottom: "1px solid rgba(255,255,255,0.12)", overflow: "hidden" }}>
+            {(collapsed && !isMobile) ? (
               data.branding?.logo ? <img src={data.branding.logo} alt="logo" style={{ width: 28, height: 28, borderRadius: 6, objectFit: "cover", margin: "0 auto", display: "block" }} /> : <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 18, textAlign: "center" }}>BD</div>
             ) : (
               <>
@@ -408,18 +425,18 @@ function App() {
               </>
             )}
           </div>
-          <nav style={{ padding: 12, display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+          <nav style={{ padding: 12, display: "flex", flexDirection: "column", gap: 3, flex: 1, overflowY: "auto" }}>
             {nav.map((n) => (
-              <button key={n.key} onClick={() => { setView(n.key); if (n.key === "admin") setAdminResetKey((k) => k + 1); }} title={collapsed ? n.label : undefined} style={{
-                display: "flex", alignItems: "center", gap: 10, padding: collapsed ? "10px 0" : "10px 12px", justifyContent: collapsed ? "center" : "flex-start",
+              <button key={n.key} onClick={() => { setView(n.key); if (n.key === "admin") setAdminResetKey((k) => k + 1); setMobileNavOpen(false); }} title={(collapsed && !isMobile) ? n.label : undefined} style={{
+                display: "flex", alignItems: "center", gap: 10, padding: (collapsed && !isMobile) ? "10px 0" : "10px 12px", justifyContent: (collapsed && !isMobile) ? "center" : "flex-start",
                 borderRadius: 8, background: view === n.key ? "#E23F52" : "transparent", color: "#fff", border: "none", cursor: "pointer", fontSize: 14, fontWeight: 500, textAlign: "start",
               }}>
-                <n.icon size={17} /> {!collapsed && n.label}
+                <n.icon size={17} /> {!(collapsed && !isMobile) && n.label}
               </button>
             ))}
           </nav>
-          <div style={{ padding: collapsed ? "14px 8px" : 14, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
-            {!collapsed && (
+          <div style={{ padding: (collapsed && !isMobile) ? "14px 8px" : 14, borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+            {!(collapsed && !isMobile) && (
               <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
                 {["fr", "en", "ar"].map((l) => (
                   <button key={l} onClick={() => setLanguage(l)} style={{ flex: 1, padding: "5px 0", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: lang === l ? "#E23F52" : "transparent", color: "#fff", fontSize: 11, cursor: "pointer" }}>{l.toUpperCase()}</button>
@@ -427,34 +444,46 @@ function App() {
               </div>
             )}
             <button onClick={toggleTheme} title={theme === "dark" ? "Mode clair" : "Mode sombre"} style={{
-              display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8, width: "100%",
-              padding: "7px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#fff", fontSize: 12, cursor: "pointer", marginBottom: collapsed ? 10 : 12,
+              display: "flex", alignItems: "center", justifyContent: (collapsed && !isMobile) ? "center" : "flex-start", gap: 8, width: "100%",
+              padding: "7px 10px", borderRadius: 6, border: "1px solid rgba(255,255,255,0.2)", background: "transparent", color: "#fff", fontSize: 12, cursor: "pointer", marginBottom: (collapsed && !isMobile) ? 10 : 12,
             }}>
-              {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />} {!collapsed && (theme === "dark" ? "Mode sombre" : "Mode clair")}
+              {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />} {!(collapsed && !isMobile) && (theme === "dark" ? "Mode sombre" : "Mode clair")}
             </button>
-            {!collapsed && (
+            {!(collapsed && !isMobile) && (
               <>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>{session.prenom} {session.nom}</div>
                 <div style={{ fontSize: 11.5, color: "var(--muted)", marginBottom: 10 }}>{session.role}</div>
               </>
             )}
-            <button onClick={() => setSession(null)} title={collapsed ? t.logout : undefined} style={{ display: "flex", alignItems: "center", justifyContent: collapsed ? "center" : "flex-start", gap: 8, width: "100%", fontSize: 13, color: "#E7455A", background: "none", border: "none", cursor: "pointer" }}>
-              <LogOut size={15} /> {!collapsed && t.logout}
+            <button onClick={() => setSession(null)} title={(collapsed && !isMobile) ? t.logout : undefined} style={{ display: "flex", alignItems: "center", justifyContent: (collapsed && !isMobile) ? "center" : "flex-start", gap: 8, width: "100%", fontSize: 13, color: "#E7455A", background: "none", border: "none", cursor: "pointer" }}>
+              <LogOut size={15} /> {!(collapsed && !isMobile) && t.logout}
             </button>
           </div>
         </aside>
-        <main style={{ flex: 1, padding: "28px 32px", overflowY: "auto" }}>
-          {view === "dashboard" && <Dashboard data={data} session={session} onNavigate={setView} />}
-          {view === "colis" && <ColisView data={data} persist={persist} session={session} notify={notify} t={t} />}
-          {view === "clients" && <Clients data={data} />}
-          {view === "bordereaux" && <BordereauxPage data={data} persist={persist} session={session} notify={notify} />}
-          {view === "paiements" && <PaiementsPage data={data} notify={notify} />}
-          {view === "comptabilite" && <ComptabilitePage data={data} persist={persist} session={session} notify={notify} />}
-          {view === "ia" && <AiAssistant data={data} />}
-          {view === "admin" && perm("config.acceder") && <ConfigurationHub key={adminResetKey} data={data} persist={persist} session={session} notify={notify} onNavigateApp={setView} offline={offline} />}
-        </main>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+          {isMobile && (
+            <div style={{ position: "sticky", top: 0, zIndex: 20, display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "#0A2647", color: "#fff" }}>
+              <button onClick={() => setMobileNavOpen(true)} style={{ background: "rgba(255,255,255,0.1)", border: "none", borderRadius: 8, width: 34, height: 34, display: "grid", placeItems: "center", color: "#fff", cursor: "pointer", flexShrink: 0 }}>
+                <Menu size={18} />
+              </button>
+              <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 15, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {nav.find((n) => n.key === view)?.label || (data.branding?.nom || "BA-DIABY EXPRESS")}
+              </div>
+            </div>
+          )}
+          <main style={{ flex: 1, padding: isMobile ? "16px 14px" : "28px 32px", overflowY: "auto", minWidth: 0 }}>
+            {view === "dashboard" && <Dashboard data={data} session={session} onNavigate={setView} />}
+            {view === "colis" && <ColisView data={data} persist={persist} session={session} notify={notify} t={t} />}
+            {view === "clients" && <Clients data={data} />}
+            {view === "bordereaux" && <BordereauxPage data={data} persist={persist} session={session} notify={notify} />}
+            {view === "paiements" && <PaiementsPage data={data} notify={notify} />}
+            {view === "comptabilite" && <ComptabilitePage data={data} persist={persist} session={session} notify={notify} />}
+            {view === "ia" && <AiAssistant data={data} />}
+            {view === "admin" && perm("config.acceder") && <ConfigurationHub key={adminResetKey} data={data} persist={persist} session={session} notify={notify} onNavigateApp={setView} offline={offline} />}
+          </main>
+        </div>
       </div>
-      {toast && <div style={{ position: "fixed", bottom: 24, insetInlineEnd: 24, background: "#0A2647", color: "#fff", padding: "12px 18px", borderRadius: 10, fontSize: 13.5, boxShadow: "0 8px 24px rgba(10,38,71,0.3)" }}>{toast}</div>}
+      {toast && <div style={{ position: "fixed", bottom: 24, insetInlineEnd: 24, insetInlineStart: isMobile ? 24 : "auto", background: "#0A2647", color: "#fff", padding: "12px 18px", borderRadius: 10, fontSize: 13.5, boxShadow: "0 8px 24px rgba(10,38,71,0.3)", textAlign: "center" }}>{toast}</div>}
     </Shell>
   );
 }
@@ -477,6 +506,20 @@ function Shell({ children, rtl, theme }) {
         ::placeholder { color: #55628A; }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }
+
+        /* --- Adaptation mobile --- */
+        /* Tout conteneur qui contient directement une table devient défilable horizontalement,
+           pour que les tableaux ne débordent jamais de l'écran sur mobile. */
+        div:has(> table) { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        table { min-width: 560px; }
+        @media (max-width: 768px) {
+          /* Empêche le zoom automatique sur iOS quand on touche un champ (nécessite 16px minimum) */
+          input, select, textarea { font-size: 16px !important; }
+          /* Les grilles à 2 colonnes fixes passent à 1 colonne sur petit écran */
+          .responsive-grid-2 { grid-template-columns: 1fr !important; }
+          /* Les cartes de statistiques restent lisibles */
+          h1 { font-size: 20px !important; }
+        }
       `}</style>
       {children}
     </div>
@@ -515,7 +558,7 @@ function Login({ users, onLogin, offline, theme, onToggleTheme }) {
   if (pending) {
     return (
       <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#0A2647 0%,#0A2647 55%,#C8102E 250%)" }}>
-        <div style={{ width: 380, background: "var(--surface)", borderRadius: 16, padding: "34px 32px", boxShadow: "0 24px 60px rgba(10,38,71,0.35)" }}>
+        <div style={{ width: "min(92vw, 380px)", background: "var(--surface)", borderRadius: 16, padding: "34px 32px", boxShadow: "0 24px 60px rgba(10,38,71,0.35)" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}><ShieldCheck size={18} color="#E23F52" /><div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, color: "var(--text)" }}>Double authentification</div></div>
           <div style={{ fontSize: 12.5, color: "var(--muted)", marginBottom: 14 }}>Démo : aucune passerelle SMS n'étant connectée, votre code de vérification est affiché ci-dessous.</div>
           <div style={{ background: "var(--surface2)", borderRadius: 10, padding: "12px 16px", textAlign: "center", fontFamily: "'Space Grotesk',sans-serif", fontSize: 24, letterSpacing: 4, color: "var(--text)", marginBottom: 14 }}>{otp}</div>
@@ -531,7 +574,7 @@ function Login({ users, onLogin, offline, theme, onToggleTheme }) {
 
   return (
     <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "linear-gradient(135deg,#0A2647 0%,#0A2647 55%,#C8102E 250%)" }}>
-      <div style={{ width: 380, background: "var(--surface)", borderRadius: 16, padding: "34px 32px", boxShadow: "0 24px 60px rgba(10,38,71,0.35)", position: "relative" }}>
+      <div style={{ width: "min(92vw, 380px)", background: "var(--surface)", borderRadius: 16, padding: "34px 32px", boxShadow: "0 24px 60px rgba(10,38,71,0.35)", position: "relative" }}>
         {onToggleTheme && (
           <button onClick={onToggleTheme} title="Changer de thème" style={{ position: "absolute", top: 18, insetInlineEnd: 18, width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface2)", color: "var(--text)", cursor: "pointer", display: "grid", placeItems: "center" }}>
             {theme === "dark" ? <Moon size={14} /> : <Sun size={14} />}
@@ -625,7 +668,7 @@ function Dashboard({ data, session, onNavigate }) {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
           <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 14.5 }}>Opérations fréquentes</div>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
           {quickActions.map((a) => (
             <button key={a.label} onClick={() => onNavigate(a.view)} style={{ display: "flex", alignItems: "center", gap: 12, background: "var(--surface2)", border: "1px solid var(--border)", borderRadius: 12, padding: "14px 16px", cursor: "pointer", textAlign: "start" }}>
               <div style={{ width: 38, height: 38, borderRadius: 10, background: a.tint, display: "grid", placeItems: "center", flexShrink: 0 }}><a.icon size={17} color="#fff" /></div>
@@ -818,7 +861,7 @@ function RoutesTarifsPage({ data, persist, session, notify, onBack }) {
       </div>
 
       <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-        <div style={{ background: "var(--surface)", borderRadius: 14, padding: 22, width: 340, border: "1px solid var(--border)" }}>
+        <div style={{ background: "var(--surface)", borderRadius: 14, padding: 22, width: "min(92vw, 340px)", border: "1px solid var(--border)" }}>
           <Field label="Pays de destination"><select value={pays} onChange={(e) => setPays(e.target.value)} style={inputStyle}>{COUNTRIES.filter(c => c.code !== "GN").map((c) => <option key={c.code} value={c.code}>{FLAGS[c.code]} {c.name} — {c.city}</option>)}</select></Field>
           <Field label="Poids (kg)"><input value={poids} onChange={(e) => setPoids(e.target.value)} style={inputStyle} /></Field>
           <Field label="Mode de transport">
@@ -1059,7 +1102,7 @@ function GestionDevisesPage({ data, persist, session, notify, onBack }) {
       </div>
 
       <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
-        <div style={{ background: "var(--surface)", borderRadius: 14, padding: 20, border: "1px solid var(--border)", width: 320 }}>
+        <div style={{ background: "var(--surface)", borderRadius: 14, padding: 20, border: "1px solid var(--border)", width: "min(92vw, 320px)" }}>
           <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, marginBottom: 12 }}>Tester la conversion</div>
           <Field label="Montant"><input value={testAmount} onChange={(e) => setTestAmount(e.target.value)} style={inputStyle} /></Field>
           <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
@@ -1072,7 +1115,7 @@ function GestionDevisesPage({ data, persist, session, notify, onBack }) {
         </div>
 
         {isAdmin && (
-          <div style={{ background: "var(--surface)", borderRadius: 14, padding: 20, border: "1px solid var(--border)", width: 320 }}>
+          <div style={{ background: "var(--surface)", borderRadius: 14, padding: 20, border: "1px solid var(--border)", width: "min(92vw, 320px)" }}>
             <div style={{ fontWeight: 700, color: "var(--text)", fontSize: 14, marginBottom: 8 }}>Synchronisation</div>
             <div style={{ fontSize: 12, color: "var(--muted)", marginBottom: 14 }}>Recalcule immédiatement les prix de catégories, frais d'expédition et montants affichés selon les taux actuels.</div>
             <button onClick={synchroniser} disabled={syncing} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, background: "#3D63FF", color: "#fff", border: "none", borderRadius: 9, padding: "11px 0", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
@@ -1684,6 +1727,8 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
   const [destTelephone, setDestTelephone] = useState("");
   const [destEmail, setDestEmail] = useState("");
   const [destAdresse, setDestAdresse] = useState("");
+  const [destVille, setDestVille] = useState("");
+  const [destCodePostal, setDestCodePostal] = useState("");
   const [destPays, setDestPays] = useState(availableCountries.find((c) => c.code !== "GN")?.code || "FR");
   const [destClientTrouve, setDestClientTrouve] = useState(null);
   const [mode, setMode] = useState("air");
@@ -1705,6 +1750,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
       setExpClientTrouve(match);
     } else {
       setDestPrenom(prenom); setDestNom(nom); setDestEmail(match.email); setDestAdresse(match.adresse);
+      setDestVille(match.ville || ""); setDestCodePostal(match.codePostal || "");
       if (match.pays && COUNTRIES.some((c) => c.code === match.pays)) setDestPays(match.pays);
       setDestClientTrouve(match);
     }
@@ -1774,7 +1820,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
     onSave({
       tracking: genTracking(),
       expediteur: `${expPrenom} ${expNom}`.trim(), expediteurTelephone: expTelephone, expediteurEmail: expEmail, expediteurAdresse: expAdresse, expediteurPays: expPays,
-      destinataire: `${destPrenom} ${destNom}`.trim(), telephone: destTelephone, destinataireEmail: destEmail, destinataireAdresse: destAdresse, destinatairePays: destPays,
+      destinataire: `${destPrenom} ${destNom}`.trim(), telephone: destTelephone, destinataireEmail: destEmail, destinataireAdresse: destAdresse, destinataireVille: destVille, destinataireCodePostal: destCodePostal, destinatairePays: destPays,
       pays, direction, mode, produits, poids: +poidsTotal.toFixed(2), volume: 0, valeurDeclaree, site: agence,
       prixBrut, discountLoyalty, rabaisMontant: Number(rabaisMontant) || 0, rabaisDevise, rabaisEUR, prix, paye: payeNum, reste, photos,
       paiements: payeNum > 0 ? [{ id: `pay${Date.now()}`, montant: payeNum, mode: "Espèces", date: new Date().toISOString(), par: "Enregistrement initial" }] : [],
@@ -1819,7 +1865,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
               <span style={{ fontSize: 20 }}>{FLAGS[expPays]}</span>
               <div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Expéditeur • {expCountry?.name.toUpperCase()}</div><div style={{ fontSize: 11.5, color: "var(--muted)" }}>Personne qui envoie le colis</div></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Field label="Téléphone * — tapez le numéro d'un client existant pour un remplissage automatique">
                   <input value={expTelephone} onChange={(e) => setExpTelephone(e.target.value)} onBlur={(e) => chercherClient(e.target.value, "exp")} style={inputStyle} placeholder="+224 ### ###" />
@@ -1841,7 +1887,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
               <span style={{ fontSize: 20 }}>{FLAGS[destPays]}</span>
               <div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Destinataire • {destCountry?.name.toUpperCase()}</div><div style={{ fontSize: 11.5, color: "var(--muted)" }}>Personne qui recevra le colis</div></div>
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
               <div style={{ gridColumn: "1 / -1" }}>
                 <Field label="Téléphone * — tapez le numéro d'un client existant pour un remplissage automatique">
                   <input value={destTelephone} onChange={(e) => setDestTelephone(e.target.value)} onBlur={(e) => chercherClient(e.target.value, "dest")} style={inputStyle} placeholder="Numéro WhatsApp" />
@@ -1852,8 +1898,10 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
               <Field label="Nom *"><input value={destNom} onChange={(e) => setDestNom(e.target.value)} style={inputStyle} placeholder="Nom du destinataire" /></Field>
               <Field label="Email (optionnel)"><input value={destEmail} onChange={(e) => setDestEmail(e.target.value)} style={inputStyle} placeholder="email@exemple.com" /></Field>
               <div style={{ gridColumn: "1 / -1" }}>
-                <Field label="Adresse *"><input value={destAdresse} onChange={(e) => setDestAdresse(e.target.value)} style={inputStyle} placeholder="Adresse complète (quartier, ville, repère...)" /></Field>
+                <Field label="Adresse *"><input value={destAdresse} onChange={(e) => setDestAdresse(e.target.value)} style={inputStyle} placeholder="Adresse complète (rue, quartier, repère...)" /></Field>
               </div>
+              <Field label="Ville"><input value={destVille} onChange={(e) => setDestVille(e.target.value)} style={inputStyle} placeholder="Paris" /></Field>
+              <Field label="Code postal"><input value={destCodePostal} onChange={(e) => setDestCodePostal(e.target.value)} style={inputStyle} placeholder="75001" /></Field>
             </div>
           </div>
         )}
@@ -1870,7 +1918,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
                   {produits.length > 1 && <button type="button" onClick={() => removeProduit(p.id)} style={{ background: "none", border: "none", color: "#E23F52", cursor: "pointer" }}><Trash2 size={14} /></button>}
                 </div>
                 <Field label="Nom du produit *"><input value={p.nom} onChange={(e) => updateProduit(p.id, { nom: e.target.value })} style={inputStyle} placeholder="Rechercher ou saisir un produit..." /></Field>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
                   <Field label="Quantité *"><input value={p.quantite} onChange={(e) => updateProduit(p.id, { quantite: e.target.value })} style={inputStyle} /></Field>
                   <Field label="Poids du colis (kg) *"><input value={p.poids} onChange={(e) => updateProduit(p.id, { poids: e.target.value })} style={inputStyle} /></Field>
                 </div>
@@ -1890,7 +1938,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
                     <div style={{ background: "#2B2313", color: "#E0A63A", borderRadius: 8, padding: "8px 12px", fontSize: 11.5, marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
                       <AlertTriangle size={13} /> Prix personnalisé actif — le tarif de catégorie n'est pas utilisé pour ce produit.
                     </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 10 }}>
                       <Field label="Montant *"><input value={p.montant} onChange={(e) => updateProduit(p.id, { montant: e.target.value, prixModifiePar: `${session?.prenom || ""} ${session?.nom || ""}`.trim(), prixModifieLe: new Date().toISOString() })} style={inputStyle} /></Field>
                       <Field label="Devise"><select value={p.devise} onChange={(e) => updateProduit(p.id, { devise: e.target.value })} style={inputStyle}>{["GNF", "EUR", "USD"].map((d) => <option key={d} value={d}>{d}</option>)}</select></Field>
                     </div>
@@ -1931,7 +1979,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
         )}
         {step === 4 && (
           <div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 14 }}>
               <Field label="Route (déterminée par expéditeur/destinataire)">
                 <div style={{ ...inputStyle, display: "flex", alignItems: "center", background: "var(--surface2)", color: "var(--text)", fontWeight: 600 }}>
                   {FLAGS[expPays]} {expCountry?.city} <ChevronRight size={13} style={{ margin: "0 4px" }} /> {FLAGS[destPays]} {destCountry?.city}
@@ -1977,7 +2025,7 @@ function ColisForm({ onClose, onSave, existingColis, categories, session, sites 
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 10, marginBottom: 16, fontSize: 13, color: "var(--text)" }}>
               {FLAGS[expPays]} {expCountry?.name.toUpperCase()} <ChevronRight size={14} color="var(--muted)" /> {FLAGS[destPays]} {destCountry?.name.toUpperCase()}
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12, marginBottom: 14 }}>
               <div style={{ border: "1px solid var(--border)", borderRadius: 10, padding: 14 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: "var(--muted)", marginBottom: 8 }}>EXPÉDITEUR</div>
                 <div style={{ fontSize: 13.5, color: "var(--text)", fontWeight: 600 }}>{expPrenom} {expNom}</div>
@@ -2102,136 +2150,133 @@ async function downloadRouteManifest(colisRoute, country, direction) {
 
 async function downloadLabel(colis) {
   const jspdf = await loadJsPDF();
-  const doc = new jspdf.jsPDF({ unit: "mm", format: [100, 178] });
+  const doc = new jspdf.jsPDF({ unit: "mm", format: "a6" }); // A6 standard = 105 x 148 mm
   const dest = COUNTRIES.find((c) => c.code === colis.pays);
   const qrData = await generateQRDataUrl(colis.tracking, 300);
   const paye = colis.reste <= 0;
-  const W = 100;
-  const M = 6;
+  const W = 105, H = 148;
+  const M = 5.5;
 
   const rule = (y) => { doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.3); doc.line(0, y, W, y); };
   const rect = (x, y, w, h) => { doc.setDrawColor(20, 20, 20); doc.rect(x, y, w, h); };
 
   // Cadre extérieur
-  doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.6); doc.rect(0, 0, W, 178);
+  doc.setDrawColor(20, 20, 20); doc.setLineWidth(0.6); doc.rect(0, 0, W, H);
 
   // En-tête : nom + mode de transport
   doc.setTextColor(20, 20, 20);
-  doc.setFont(undefined, "bold"); doc.setFontSize(15);
-  doc.text("BA-DIABY", M, 11);
-  doc.text("EXPRESS", M, 18);
-  doc.setFillColor(20, 20, 20); doc.roundedRect(66, 7, 28, 8, 4, 4, "F");
-  doc.setTextColor(255, 255, 255); doc.setFontSize(8); doc.setFont(undefined, "bold");
-  doc.text(colis.mode === "air" ? "AÉRIEN" : "MARITIME", 80, 12, { align: "center" });
-  rule(24);
+  doc.setFont(undefined, "bold"); doc.setFontSize(13);
+  doc.text("BA-DIABY", M, 10);
+  doc.text("EXPRESS", M, 16.5);
+  doc.setFillColor(20, 20, 20); doc.roundedRect(69, 6, 30, 7.5, 3.75, 3.75, "F");
+  doc.setTextColor(255, 255, 255); doc.setFontSize(7.5); doc.setFont(undefined, "bold");
+  doc.text(colis.mode === "air" ? "AÉRIEN" : "MARITIME", 84, 11, { align: "center" });
+  rule(20);
 
   // Statut de paiement
   doc.setFillColor(...(paye ? [18, 38, 29] : [43, 22, 32]));
-  doc.rect(0, 24, W, 9, "F");
+  doc.rect(0, 20, W, 7.5, "F");
   doc.setTextColor(...(paye ? [62, 203, 132] : [226, 63, 82]));
-  doc.setFontSize(9); doc.setFont(undefined, "bold");
-  doc.text(paye ? "✓ PAYÉ" : `✗ NON PAYÉ — reste ${fmt(colis.reste, "EUR")}`, M, 30);
+  doc.setFontSize(8.5); doc.setFont(undefined, "bold");
+  doc.text(paye ? "✓ PAYÉ" : `✗ NON PAYÉ — reste ${fmt(colis.reste, "EUR")}`, M, 25.3);
   doc.setTextColor(20, 20, 20);
-  rule(33);
+  rule(27.5);
 
   // Destinataire
-  let y = 33;
-  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
-  doc.text("DESTINATAIRE / TO", M, y + 6);
-  doc.setTextColor(20, 20, 20); doc.setFontSize(13);
+  let y = 27.5;
+  doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
+  doc.text("DESTINATAIRE / TO", M, y + 5);
+  doc.setTextColor(20, 20, 20); doc.setFontSize(11.5);
   const nomLines = doc.splitTextToSize(colis.destinataire.toUpperCase(), W - 2 * M);
-  doc.text(nomLines, M, y + 13);
-  y += 13 + nomLines.length * 5.5;
-  doc.setFontSize(9.5); doc.setFont(undefined, "bold");
+  doc.text(nomLines, M, y + 11);
+  y += 11 + nomLines.length * 4.8;
+  doc.setFontSize(8.5); doc.setFont(undefined, "bold");
   doc.text(`${(dest?.name || "").toUpperCase()}   ${colis.telephone || ""}`, M, y);
-  y += 6;
+  y += 5;
+  doc.setFont(undefined, "normal"); doc.setFontSize(7.5); doc.setTextColor(80, 80, 80);
   if (colis.destinataireAdresse) {
-    doc.setFontSize(8); doc.setFont(undefined, "normal"); doc.setTextColor(80, 80, 80);
     const addrLines = doc.splitTextToSize(colis.destinataireAdresse, W - 2 * M);
     doc.text(addrLines, M, y);
-    y += addrLines.length * 4.2;
+    y += addrLines.length * 3.8;
   }
-  if (colis.destinataireEmail) {
-    doc.setFontSize(8); doc.setTextColor(80, 80, 80);
-    doc.text(colis.destinataireEmail, M, y);
-    y += 5;
-  }
-  y += 3;
+  const villeCp = [colis.destinataireCodePostal, colis.destinataireVille].filter(Boolean).join(" ");
+  if (villeCp) { doc.text(villeCp, M, y); y += 4; }
+  if (colis.destinataireEmail) { doc.text(colis.destinataireEmail, M, y); y += 4; }
+  y += 2.5;
   rule(y);
 
   // QR + code de suivi
-  const qrTop = y + 6;
-  doc.addImage(qrData, "PNG", M, qrTop, 34, 34);
-  rect(M, qrTop, 34, 34);
-  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
-  doc.text("CODE DE SUIVI", 46, qrTop + 8);
-  doc.setTextColor(20, 20, 20); doc.setFontSize(15);
-  doc.text(colis.tracking, 46, qrTop + 17);
-  y = qrTop + 34 + 6;
+  const qrTop = y + 4.5;
+  doc.addImage(qrData, "PNG", M, qrTop, 27, 27);
+  rect(M, qrTop, 27, 27);
+  doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
+  doc.text("CODE DE SUIVI", M + 32, qrTop + 7);
+  doc.setTextColor(20, 20, 20); doc.setFontSize(13.5);
+  doc.text(colis.tracking, M + 32, qrTop + 15);
+  y = qrTop + 27 + 4.5;
   rule(y);
 
   // Code-barres (visuel, dérivé du tracking)
-  const barTop = y + 6;
+  const barTop = y + 4.5;
   let bx = M;
   for (let i = 0; i < colis.tracking.length * 3; i++) {
     const seed = colis.tracking.charCodeAt(i % colis.tracking.length) * (i + 1);
-    const w = 0.4 + (seed % 3) * 0.35;
-    if (seed % 4 !== 0) { doc.setFillColor(20, 20, 20); doc.rect(bx, barTop, w, 16, "F"); }
-    bx += w + 0.4;
+    const w = 0.35 + (seed % 3) * 0.3;
+    if (seed % 4 !== 0) { doc.setFillColor(20, 20, 20); doc.rect(bx, barTop, w, 13, "F"); }
+    bx += w + 0.35;
     if (bx > W - M) break;
   }
-  doc.setFontSize(8); doc.setFont(undefined, "bold"); doc.setTextColor(20, 20, 20);
-  doc.text(colis.tracking, W / 2, barTop + 21, { align: "center" });
-  y = barTop + 26;
+  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(20, 20, 20);
+  doc.text(colis.tracking, W / 2, barTop + 17.5, { align: "center" });
+  y = barTop + 21.5;
   rule(y);
 
   // Expéditeur
-  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
-  doc.text("EXPÉDITEUR / FROM", M, y + 6);
-  doc.setTextColor(20, 20, 20); doc.setFontSize(10.5);
-  doc.text(colis.expediteur, M, y + 12);
-  doc.setFontSize(9); doc.setFont(undefined, "normal");
-  doc.text(colis.expediteurTelephone || "", W - M, y + 12, { align: "right" });
-  y += 16;
+  doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
+  doc.text("EXPÉDITEUR / FROM", M, y + 5);
+  doc.setTextColor(20, 20, 20); doc.setFontSize(9.5);
+  doc.text(colis.expediteur, M, y + 10.5);
+  doc.setFontSize(8); doc.setFont(undefined, "normal");
+  doc.text(colis.expediteurTelephone || "", W - M, y + 10.5, { align: "right" });
+  y += 14;
   rule(y);
 
   // Poids / Articles / Date
   const articles = (colis.produits || []).reduce((s, p) => s + (Number(p.quantite) || 1), 0) || 1;
   const col = (x, w, label, value) => {
-    doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
-    doc.text(label, x + w / 2, y + 6, { align: "center" });
-    doc.setFontSize(11); doc.setTextColor(20, 20, 20);
-    doc.text(String(value), x + w / 2, y + 13, { align: "center" });
+    doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
+    doc.text(label, x + w / 2, y + 5, { align: "center" });
+    doc.setFontSize(10); doc.setTextColor(20, 20, 20);
+    doc.text(String(value), x + w / 2, y + 11, { align: "center" });
   };
   const colW = W / 3;
   col(0, colW, "POIDS", `${colis.poids} kg`);
-  doc.setDrawColor(220); doc.line(colW, y, colW, y + 17); doc.line(colW * 2, y, colW * 2, y + 17);
+  doc.setDrawColor(220); doc.line(colW, y, colW, y + 15); doc.line(colW * 2, y, colW * 2, y + 15);
   col(colW, colW, "ARTICLES", articles);
   col(colW * 2, colW, "DATE", new Date(colis.createdAt).toLocaleDateString("fr-FR"));
-  y += 17;
+  y += 15;
   rule(y);
 
   // Référence / route
-  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
-  doc.text("RÉF.", M, y + 6.5);
-  doc.setTextColor(20, 20, 20); doc.setFontSize(10);
-  doc.text(routeLabel(colis.pays, colis.direction).toUpperCase(), W - M, y + 6.5, { align: "right" });
-  y += 10;
+  doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(120, 120, 120);
+  doc.text("RÉF.", M, y + 5.5);
+  doc.setTextColor(20, 20, 20); doc.setFontSize(9);
+  doc.text(routeLabel(colis.pays, colis.direction).toUpperCase(), W - M, y + 5.5, { align: "right" });
+  y += 8.5;
   rule(y);
 
-  // Mentions légales
-  doc.setFontSize(7); doc.setFont(undefined, "normal"); doc.setTextColor(90, 90, 90);
+  // Mentions légales (condensées pour tenir sur A6)
+  doc.setFontSize(6.3); doc.setFont(undefined, "normal"); doc.setTextColor(90, 90, 90);
   const legal = [
-    "Vérifier l'état du colis avant acceptation et émettre toute réserve en présence du livreur.",
-    "Transport soumis aux conditions générales de BA-DIABY EXPRESS.",
+    "Vérifier l'état du colis avant acceptation. Transport soumis aux CGV BA-DIABY EXPRESS.",
     "Support : contact@badiaby-express.com",
   ];
-  let ly = y + 6;
-  legal.forEach((l) => { const wrapped = doc.splitTextToSize(l, W - 2 * M); doc.text(wrapped, M, ly); ly += wrapped.length * 3.6; });
+  let ly = y + 4.5;
+  legal.forEach((l) => { const wrapped = doc.splitTextToSize(l, W - 2 * M); doc.text(wrapped, M, ly); ly += wrapped.length * 3.2; });
 
-  rule(170);
-  doc.setFontSize(7.5); doc.setFont(undefined, "bold"); doc.setTextColor(20, 20, 20);
-  doc.text("WWW.BA-DIABY-EXPRESS.COM", W / 2, 175, { align: "center" });
+  rule(H - 8);
+  doc.setFontSize(7); doc.setFont(undefined, "bold"); doc.setTextColor(20, 20, 20);
+  doc.text("WWW.BA-DIABY-EXPRESS.COM", W / 2, H - 4, { align: "center" });
 
   openPdf(doc, `etiquette-${colis.tracking}.pdf`);
 }
@@ -2358,7 +2403,7 @@ function EditColisForm({ colis, onClose, onSave }) {
 
   return (
     <Modal onClose={onClose} title={`Modifier le colis ${colis.tracking}`} wide>
-      <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
         <Field label="Expéditeur"><input value={expediteur} onChange={(e) => setExpediteur(e.target.value)} style={inputStyle} /></Field>
         <Field label="Destinataire"><input value={destinataire} onChange={(e) => setDestinataire(e.target.value)} style={inputStyle} /></Field>
         <Field label="Téléphone (WhatsApp)"><input value={telephone} onChange={(e) => setTelephone(e.target.value)} style={inputStyle} /></Field>
@@ -2520,7 +2565,7 @@ function ColisDetail({ colis, onClose, onAdvance, onDelete, onCancel, onUpdate, 
         </div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 18 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14, marginBottom: 18 }}>
         <Info label="Expéditeur" value={colis.expediteur} /><Info label="Destinataire" value={colis.destinataire} />
         <Info label="Téléphone" value={colis.telephone} /><Info label="Poids / Volume" value={`${colis.poids} kg${colis.volume ? ` · ${colis.volume} m³` : ""}`} />
         <Info label={`Montant total (Guinée)`} value={fmt(colis.prix, "GNF")} /><Info label={`Montant total (${destCurrency})`} value={fmt(colis.prix, destCurrency)} />
@@ -2547,7 +2592,7 @@ function ColisDetail({ colis, onClose, onAdvance, onDelete, onCancel, onUpdate, 
         {colis.reste > 0 && effectivePermission(session, "colis.enregistrer_paiement") && (
           payerOuvert ? (
             <div style={{ background: "var(--surface2)", borderRadius: 10, padding: 14 }}>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10, marginBottom: 6 }}>
                 <Field label="Montant reçu">
                   <input value={montantPaye} onChange={(e) => setMontantPaye(e.target.value)} style={inputStyle} />
                 </Field>
@@ -2575,7 +2620,7 @@ function ColisDetail({ colis, onClose, onAdvance, onDelete, onCancel, onUpdate, 
                 <div style={{ background: "var(--surface)", borderRadius: 8, padding: 12, marginTop: 8 }}>
                   <div style={{ fontSize: 11, color: "var(--muted)", marginBottom: 8 }}>DÉTAILS DE LA TRANSACTION (optionnel mais recommandé)</div>
                   <Field label="Référence de la transaction"><input value={referenceTransaction} onChange={(e) => setReferenceTransaction(e.target.value)} style={inputStyle} placeholder="ex: MP240726.1234.A56789" /></Field>
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 10 }}>
                     <Field label="Numéro qui a payé"><input value={numeroPayeur} onChange={(e) => setNumeroPayeur(e.target.value)} style={inputStyle} /></Field>
                     <Field label="Numéro qui a reçu"><input value={numeroReceveur} onChange={(e) => setNumeroReceveur(e.target.value)} style={inputStyle} /></Field>
                   </div>
@@ -2726,7 +2771,7 @@ function buildClientDirectory(colisList) {
   colisList.forEach((c) => {
     if (c.telephone) {
       const key = c.telephone.trim();
-      const entry = { telephone: c.telephone, nomComplet: c.destinataire, prenom: "", nom: c.destinataire, email: c.destinataireEmail || "", adresse: c.destinataireAdresse || "", pays: c.destinatairePays || c.pays, date: c.createdAt, count: 0, total: 0 };
+      const entry = { telephone: c.telephone, nomComplet: c.destinataire, prenom: "", nom: c.destinataire, email: c.destinataireEmail || "", adresse: c.destinataireAdresse || "", ville: c.destinataireVille || "", codePostal: c.destinataireCodePostal || "", pays: c.destinatairePays || c.pays, date: c.createdAt, count: 0, total: 0 };
       if (!map[key] || new Date(c.createdAt) > new Date(map[key].date)) map[key] = { ...entry, count: (map[key]?.count || 0), total: (map[key]?.total || 0) };
       map[key].count = (map[key].count || 0) + 1;
       map[key].total = (map[key].total || 0) + c.prix;
@@ -2734,7 +2779,7 @@ function buildClientDirectory(colisList) {
     if (c.expediteurTelephone) {
       const key = c.expediteurTelephone.trim();
       if (!map[key]) {
-        map[key] = { telephone: c.expediteurTelephone, nomComplet: c.expediteur, prenom: "", nom: c.expediteur, email: c.expediteurEmail || "", adresse: c.expediteurAdresse || "", pays: c.expediteurPays || "GN", date: c.createdAt, count: 0, total: 0 };
+        map[key] = { telephone: c.expediteurTelephone, nomComplet: c.expediteur, prenom: "", nom: c.expediteur, email: c.expediteurEmail || "", adresse: c.expediteurAdresse || "", ville: "", codePostal: "", pays: c.expediteurPays || "GN", date: c.createdAt, count: 0, total: 0 };
       }
     }
   });
@@ -3155,7 +3200,7 @@ function AiAssistant({ data }) {
 
       {tab === "route" ? (
         <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          <div style={{ background: "var(--surface)", borderRadius: 14, padding: 22, width: 320, boxShadow: "0 2px 10px rgba(10,38,71,0.06)" }}>
+          <div style={{ background: "var(--surface)", borderRadius: 14, padding: 22, width: "min(92vw, 320px)", boxShadow: "0 2px 10px rgba(10,38,71,0.06)" }}>
             <Field label="Destination"><select value={pays} onChange={(e) => setPays(e.target.value)} style={inputStyle}>{COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}</select></Field>
             <Field label="Mode"><div style={{ display: "flex", gap: 8 }}>
               <button onClick={() => setMode("air")} style={{ ...toggleBtn, ...(mode === "air" ? toggleActive : {}) }}><Plane size={14} /> Aérien</button>
@@ -3763,7 +3808,7 @@ function UserForm({ onClose, onSave, existing }) {
   }
   return (
     <Modal onClose={onClose} title="Créer un compte utilisateur">
-      <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 14 }}>
         <Field label="Prénom"><input value={prenom} onChange={(e) => setPrenom(e.target.value)} style={inputStyle} /></Field>
         <Field label="Nom"><input value={nom} onChange={(e) => setNom(e.target.value)} style={inputStyle} /></Field>
         <div style={{ gridColumn: "1 / -1" }}>
@@ -3805,11 +3850,11 @@ function UserForm({ onClose, onSave, existing }) {
 
 function Modal({ title, children, onClose, wide }) {
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(4,7,14,0.65)", display: "grid", placeItems: "center", zIndex: 50, padding: 20 }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 26, width: wide ? 620 : 420, maxHeight: "88vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
+    <div style={{ position: "fixed", inset: 0, background: "rgba(4,7,14,0.65)", display: "grid", placeItems: "center", zIndex: 50, padding: 12 }} onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: 16, padding: 20, width: wide ? "min(94vw, 620px)" : "min(94vw, 420px)", maxHeight: "90vh", overflowY: "auto", boxShadow: "0 24px 60px rgba(0,0,0,0.5)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 18 }}>
           <div style={{ fontFamily: "'Space Grotesk',sans-serif", fontWeight: 700, fontSize: 17, color: TEXT }}>{title}</div>
-          <button onClick={onClose} style={{ background: SURFACE2, border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", display: "grid", placeItems: "center" }}><X size={15} color={MUTED} /></button>
+          <button onClick={onClose} style={{ background: SURFACE2, border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", display: "grid", placeItems: "center", flexShrink: 0 }}><X size={15} color={MUTED} /></button>
         </div>
         {children}
       </div>

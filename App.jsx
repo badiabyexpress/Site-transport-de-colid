@@ -313,13 +313,20 @@ function Barcode({ value }) {
   );
 }
 
-/** Détecte si l'écran est de taille mobile, et se met à jour si la fenêtre est redimensionnée ou pivotée. */
+/** Détecte si l'écran est de taille mobile, et se met à jour de façon fiable — y compris dans un
+ * aperçu intégré (iframe) où l'événement "resize" classique du navigateur ne se déclenche pas toujours. */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(() => (typeof window !== "undefined" ? window.innerWidth < 900 : false));
   useEffect(() => {
-    function onResize() { setIsMobile(window.innerWidth < 900); }
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
+    function check() { setIsMobile(window.innerWidth < 900); }
+    check(); // s'assure que la valeur est correcte dès que la mise en page finale est prête, pas seulement au tout premier rendu
+    window.addEventListener("resize", check);
+    let ro;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(check);
+      ro.observe(document.documentElement);
+    }
+    return () => { window.removeEventListener("resize", check); if (ro) ro.disconnect(); };
   }, []);
   return isMobile;
 }
